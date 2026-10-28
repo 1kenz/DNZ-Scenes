@@ -1,0 +1,12 @@
+.env
+.DS_Store
+.build/
+.swiftpm/
+xcuserdata/
+DerivedData/
+*.xcodeproj/
+build/
+assets/wallpapers/
+.fuse_hidden*
+CLAUDE.md
+Sources/DNZScenes/XXYIkezt
