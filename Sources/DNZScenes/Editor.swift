@@ -184,6 +184,7 @@ struct EditorView: View {
             HStack(alignment: .top) {
                 Text("Wallpaper").frame(width: 80, alignment: .leading)
                 WallpaperThumb(name: context.wallpaper)
+                    .id("\(context.id)|\(context.wallpaper ?? "")")  // fresh view (no stale image) per profile and file
                 VStack(alignment: .leading, spacing: 6) {
                     Button("Choose Image...") { chooseWallpaper(id) }
                     Button("Remove Wallpaper") {
@@ -286,6 +287,11 @@ struct EditorView: View {
     }
 }
 
+/// Carries a decoded thumbnail from the background task to the main actor (CGImage is immutable).
+private struct ThumbBox: @unchecked Sendable {
+    let cg: CGImage?
+}
+
 private struct WallpaperThumb: View {
     let name: String?
     @State private var image: NSImage?
@@ -301,30 +307,24 @@ private struct WallpaperThumb: View {
         .frame(width: 160, height: 90)
         .clipped()
         .cornerRadius(6)
-        .onAppear(perform: load)
-        .onChange(of: name) { _ in load() }
-    }
-
-    private func load() {
-        guard let name, let url = Wallpaper.url(for: name) else {
+        // Runs on appear and again whenever `name` changes; a still-running load for the previous
+        // profile is cancelled, so a slow earlier thumbnail can never overwrite the current one.
+        .task(id: name) {
             image = nil
-            return
-        }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let thumb = Self.thumbnail(url)
-            DispatchQueue.main.async { image = thumb }
+            guard let name, let url = Wallpaper.url(for: name) else { return }
+            let box = await Task.detached(priority: .userInitiated) { ThumbBox(cg: Self.thumbnail(url)) }.value
+            if !Task.isCancelled, let cg = box.cg { image = NSImage(cgImage: cg, size: .zero) }
         }
     }
 
-    private static func thumbnail(_ url: URL) -> NSImage? {
+    nonisolated private static func thumbnail(_ url: URL) -> CGImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceThumbnailMaxPixelSize: 400,
             kCGImageSourceCreateThumbnailWithTransform: true
         ]
-        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
-        return NSImage(cgImage: cg, size: .zero)
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 }
 

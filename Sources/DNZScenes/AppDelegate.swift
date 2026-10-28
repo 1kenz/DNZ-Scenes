@@ -210,6 +210,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openEditor() {
         editorModel.replace(config: config)
+        // Open on the active profile instead of whatever row was selected last time.
+        if let active = activeID, config.contexts.contains(where: { $0.id == active }) {
+            editorModel.selectedContextID = active
+        }
         if editorWindow == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: EditorView(model: editorModel)))
             window.title = "DNZ-Scenes Profiles"
@@ -276,9 +280,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addItem(to: menu, trusted ? "Accessibility: granted" : "Accessibility: not granted (open settings)",
                 #selector(openAccessibilitySettings))
         menu.addItem(.separator())
-        let versionItem = NSMenuItem(title: "Version \(Self.versionText)", action: nil, keyEquivalent: "")
-        versionItem.isEnabled = false
-        menu.addItem(versionItem)
         addItem(to: menu, "About DNZ-Scenes", #selector(showAbout))   // directly above Quit (about-standard.md §1)
         menu.addItem(NSMenuItem(title: "Quit DNZ-Scenes", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
@@ -324,13 +325,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSBezierPath(ovalIn: rect).fill()
             return true
         }
-    }
-
-    private static var versionText: String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "dev"
-        let build = info?["CFBundleVersion"] as? String ?? "0"
-        return "\(version) (\(build))"
     }
 
     /// Standard DNZ About window (core/standards/about-standard.md); see AboutWindow.swift.
