@@ -6,6 +6,8 @@
 
 <p align="center"><img src="assets/icon/AppIcon.svg" alt="DNZ-Scenes icon" width="120" height="120"></p>
 
+<p align="center"><a href="https://1kenz.github.io/DNZ-Scenes/"><b>Website</b></a> · <a href="#install-build-from-source">Build from source</a> · <a href="LICENSE">License</a></p>
+
 ## Features
 - **Profiles**: up to 20 named profiles with a colour and a wallpaper each; add, rename and delete them in the built-in editor.
 - **Pin apps to screens**: assign apps to the left, right or laptop display; windows are tiled when you switch. Capture the current layout with one click.
