@@ -4,7 +4,7 @@
 
 > Early-stage personal project (v0.4.0). Built for a 2 monitors + MacBook desk; developed on macOS 27, requires macOS 13+.
 
-![DNZ-Scenes icon](assets/icon/AppIcon.svg)
+<p align="center"><img src="assets/icon/AppIcon.svg" alt="DNZ-Scenes icon" width="120" height="120"></p>
 
 ## Features
 - **Profiles**: up to 20 named profiles with a colour and a wallpaper each; add, rename and delete them in the built-in editor.
@@ -20,7 +20,7 @@ It does **not** use native macOS Spaces (there is no public API). The app manage
 ## Install (build from source)
 Requires Xcode or the Swift toolchain.
 ```bash
-git clone https://github.com/<your-user>/DNZ-Scenes.git
+git clone https://github.com/1kenz/DNZ-Scenes.git
 cd DNZ-Scenes
 ./scripts/build-app.sh
 open build/DNZ-Scenes.app
