@@ -41,7 +41,25 @@ check("shows target apps on their displays", p1?.show == [
 let p2 = try? Switcher.plan(config: config, target: "work1",
                             runningApps: ["com.apple.TV", "com.apple.Terminal", "com.unrelated.App"],
                             availableDisplays: all)
-check("hides only running apps owned by other contexts", p2?.hide == ["com.apple.TV"])
+var ownedOnly = config
+ownedOnly.hideOthers = false
+let p2b = try? Switcher.plan(config: ownedOnly, target: "work1",
+                             runningApps: ["com.apple.TV", "com.apple.Terminal", "com.unrelated.App"],
+                             availableDisplays: all)
+check("hideOthers off: hides only running apps owned by other contexts", p2b?.hide == ["com.apple.TV"])
+check("hideOthers on: hides every app outside the target, keeps Finder and protected apps",
+      (try? Switcher.plan(config: config, target: "work1",
+                          runningApps: ["com.apple.TV", "com.apple.Terminal", "com.unrelated.App",
+                                        "com.apple.finder", "dev.dnz.scenes"],
+                          availableDisplays: all, protectedApps: ["dev.dnz.scenes"]))?.hide
+      == ["com.apple.TV", "com.unrelated.App"])
+check("hideOthers on: a profile with no apps hides nothing it does not own",
+      (try? Switcher.plan(config: Config.starter(displays: ["left": "UUID-L"]), target: "001",
+                          runningApps: ["com.unrelated.App"], availableDisplays: all))?.hide == [])
+let legacyJSON = Data(#"{"schemaVersion":1,"displays":{},"contexts":[]}"#.utf8)
+let legacy = try? ConfigCodec.decode(legacyJSON)
+check("old config files without hideOthers/keepVisible decode with defaults",
+      legacy?.hideOthers == true && legacy?.keepVisible == ["com.apple.finder"])
 
 let p3 = try? Switcher.plan(config: config, target: "work1", runningApps: [], availableDisplays: ["UUID-M"])
 check("missing display falls back to first available",

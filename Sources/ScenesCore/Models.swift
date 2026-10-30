@@ -39,13 +39,34 @@ public struct Config: Codable, Equatable, Sendable {
     /// role ("left", "right", "laptop") -> display UUID
     public var displays: [String: String]
     public var contexts: [Context]
+    /// When true, switching hides every regular running app that is not in the target profile
+    /// (except `keepVisible` and the app itself). When false, only apps owned by other profiles are hidden.
+    public var hideOthers: Bool
+    /// Bundle identifiers that are never hidden by a switch.
+    public var keepVisible: [String]
+
+    public static let defaultKeepVisible = ["com.apple.finder"]
 
     public init(schemaVersion: Int = Config.currentSchemaVersion,
                 displays: [String: String],
-                contexts: [Context]) {
+                contexts: [Context],
+                hideOthers: Bool = true,
+                keepVisible: [String] = Config.defaultKeepVisible) {
         self.schemaVersion = schemaVersion
         self.displays = displays
         self.contexts = contexts
+        self.hideOthers = hideOthers
+        self.keepVisible = keepVisible
+    }
+
+    // Older config files have no hideOthers/keepVisible keys; they get the defaults.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
+        displays = try c.decode([String: String].self, forKey: .displays)
+        contexts = try c.decode([Context].self, forKey: .contexts)
+        hideOthers = try c.decodeIfPresent(Bool.self, forKey: .hideOthers) ?? true
+        keepVisible = try c.decodeIfPresent([String].self, forKey: .keepVisible) ?? Config.defaultKeepVisible
     }
 
     /// First-run config: eight empty profiles 001...008 with ctrl+opt+1...8 and numbered wallpapers.

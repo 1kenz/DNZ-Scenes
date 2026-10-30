@@ -139,10 +139,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func switchTo(_ contextID: String) {
         guard WindowPlacer.isTrusted(prompt: true) else { return }
         let displays = Displays.current()
-        let running = Set(NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier })
+        // Only regular GUI apps can be hidden; background agents and daemons are not candidates.
+        let running = Set(NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .compactMap { $0.bundleIdentifier })
         do {
             let plan = try Switcher.plan(config: config, target: contextID, runningApps: running,
-                                         availableDisplays: displays.map(\.uuid))
+                                         availableDisplays: displays.map(\.uuid),
+                                         protectedApps: Bundle.main.bundleIdentifier.map { [$0] } ?? [])
             WindowPlacer.apply(plan, displays: displays)
             Wallpaper.apply(name: config.contexts.first(where: { $0.id == contextID })?.wallpaper)
             activeID = contextID
@@ -189,6 +193,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             appsByRole[role(forRunning: bundle), default: []].append(bundle)
         }
         config = config.settingSlots(contextID: id, appsByRole: appsByRole)
+        saveConfig()
+    }
+
+    @objc private func toggleHideOthers() {
+        config.hideOthers.toggle()
         saveConfig()
     }
 
@@ -271,6 +280,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addItem(to: menu, "Edit Profiles...", #selector(openEditor), key: ",")
         menu.addItem(.separator())
 
+        let hideItem = NSMenuItem(title: "Hide Other Apps on Switch", action: #selector(toggleHideOthers), keyEquivalent: "")
+        hideItem.target = self
+        hideItem.state = config.hideOthers ? .on : .off
+        menu.addItem(hideItem)
         addItem(to: menu, "Map Displays to Current Screens", #selector(mapDisplays))
         addItem(to: menu, "Reset Profiles to Defaults...", #selector(resetProfiles))
         addItem(to: menu, "Reload Config", #selector(reloadConfig))
