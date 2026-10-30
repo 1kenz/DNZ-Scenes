@@ -25,15 +25,19 @@ enum ProfileColor {
 }
 
 enum AppInfo {
-    static func name(_ bundleID: String) -> String {
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            return FileManager.default.displayName(atPath: url.path)
+    /// `entry` is a bundle ID, optionally followed by "::<browser profile>".
+    static func name(_ entry: String) -> String {
+        let ref = AppRef(entry)
+        var base = ref.bundleID
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ref.bundleID) {
+            base = FileManager.default.displayName(atPath: url.path)
         }
-        return bundleID
+        guard let profile = ref.profile else { return base }
+        return base + " — " + profile
     }
 
-    static func icon(_ bundleID: String) -> NSImage {
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+    static func icon(_ entry: String) -> NSImage {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: AppRef(entry).bundleID) {
             return NSWorkspace.shared.icon(forFile: url.path)
         }
         return NSImage(named: NSImage.applicationIconName) ?? NSImage()
@@ -87,7 +91,7 @@ final class EditorModel: ObservableObject {
     func addApps(_ bundleIDs: [String], to contextID: String) {
         var updated = config
         for id in bundleIDs {
-            updated = updated.addingApp(id, role: roleForApp(id), toContext: contextID)
+            updated = updated.addingApp(id, role: roleForApp(AppRef(id).bundleID), toContext: contextID)
         }
         apply(updated)
     }
@@ -107,6 +111,46 @@ final class EditorModel: ObservableObject {
 
 // MARK: - views
 
+private struct ChromeProfilePicker: View {
+    let already: Set<String>
+    let onAdd: ([String]) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var selection = Set<String>()
+    private let profiles = ChromeProfiles.all()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Select the Chrome profiles to add").font(.headline)
+            if profiles.isEmpty {
+                Text("No Chrome profiles found. Is Google Chrome installed and has it been opened once?")
+                    .foregroundColor(.secondary)
+            }
+            List(profiles, id: \.name, selection: $selection) { profile in
+                HStack {
+                    Image(nsImage: AppInfo.icon(AppRef.chromeBundleID)).resizable().frame(width: 18, height: 18)
+                    Text(profile.name)
+                    if already.contains(AppRef(bundleID: AppRef.chromeBundleID, profile: profile.name).entry) {
+                        Spacer()
+                        Text("already in profile").font(.caption).foregroundColor(.secondary)
+                    }
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                Button("Add \(selection.count)") {
+                    onAdd(selection.sorted().map { AppRef(bundleID: AppRef.chromeBundleID, profile: $0).entry })
+                    dismiss()
+                }
+                .disabled(selection.isEmpty)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding()
+        .frame(width: 400, height: 380)
+    }
+}
+
 private struct AppEntry: Identifiable {
     let id: String   // bundle identifier
     let name: String
@@ -121,6 +165,7 @@ struct EditorView: View {
     @ObservedObject var model: EditorModel
     @State private var selectedApps = Set<String>()
     @State private var showRunningPicker = false
+    @State private var showChromePicker = false
     @State private var showDeleteConfirm = false
 
     private let roles = ["left", "right", "laptop"]
@@ -213,6 +258,7 @@ struct EditorView: View {
             HStack {
                 Button("Add Running Apps...") { showRunningPicker = true }
                 Button("Add From Applications...") { chooseApplications(id) }
+                Button("Add Chrome Profile...") { showChromePicker = true }
                 Spacer()
                 Menu("Move Selected To") {
                     ForEach(roles, id: \.self) { role in
@@ -228,6 +274,11 @@ struct EditorView: View {
             }
         }
         .padding()
+        .sheet(isPresented: $showChromePicker) {
+            ChromeProfilePicker(already: Set(context.slots.flatMap(\.apps))) { ids in
+                model.addApps(ids, to: id)
+            }
+        }
         .sheet(isPresented: $showRunningPicker) {
             RunningAppsPicker(already: Set(context.slots.flatMap(\.apps))) { ids in
                 model.addApps(ids, to: id)

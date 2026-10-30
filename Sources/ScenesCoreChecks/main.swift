@@ -156,5 +156,38 @@ var full = base
 while let next = full.addingContext(name: "x") { full = next.config }
 check("profile count is capped", full.contexts.count == Config.maxContexts)
 
+// --- Chrome profiles ---
+check("AppRef parses plain IDs and profile entries, and round-trips",
+      AppRef("com.apple.Terminal") == AppRef(bundleID: "com.apple.Terminal")
+      && AppRef("com.google.Chrome::Kenan (**)") == AppRef(bundleID: "com.google.Chrome", profile: "Kenan (**)")
+      && AppRef("com.google.Chrome::Kenan (**)").entry == "com.google.Chrome::Kenan (**)"
+      && AppRef("com.google.Chrome::").profile == nil)
+let chromeConfig = Config(
+    displays: ["left": "UUID-L", "right": "UUID-R"],
+    contexts: [
+        Context(id: "a", name: "A", colorHex: "#3366FF", slots: [
+            Slot(displayRole: "left", apps: ["com.google.Chrome::DNZ (AI)", "com.apple.Terminal"])]),
+        Context(id: "b", name: "B", colorHex: "#CC3344", slots: [
+            Slot(displayRole: "right", apps: ["com.google.Chrome::zoom"])])
+    ])
+let pc = try? Switcher.plan(config: chromeConfig, target: "a",
+                            runningApps: ["com.google.Chrome", "com.apple.Terminal", "com.unrelated.App"],
+                            availableDisplays: all)
+check("profile entries become placements with the profile name",
+      pc?.show == [Placement(bundleID: "com.google.Chrome", displayUUID: "UUID-L", profile: "DNZ (AI)"),
+                   Placement(bundleID: "com.apple.Terminal", displayUUID: "UUID-L")])
+check("Chrome is not hidden while the target wants one of its profiles",
+      pc?.hide == ["com.unrelated.App"])
+check("all configured profiles are listed per app",
+      pc?.knownProfiles == ["com.google.Chrome": ["DNZ (AI)", "zoom"]])
+var chromeOwned = chromeConfig
+chromeOwned.hideOthers = false
+check("hideOthers off: Chrome stays visible when the target uses a profile of it",
+      (try? Switcher.plan(config: chromeOwned, target: "a", runningApps: ["com.google.Chrome"],
+                          availableDisplays: all))?.hide == [])
+check("hideOthers off: apps owned by other profiles are still hidden",
+      (try? Switcher.plan(config: chromeOwned, target: "b", runningApps: ["com.apple.Terminal"],
+                          availableDisplays: all))?.hide == ["com.apple.Terminal"])
+
 print("\n\(total - failures)/\(total) checks passed")
 exit(failures == 0 ? 0 : 1)

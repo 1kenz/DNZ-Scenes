@@ -180,7 +180,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func addApp(_ sender: NSMenuItem) {
         guard let p = sender.representedObject as? Payload else { return }
-        config = config.addingApp(p.bundleID, role: role(forRunning: p.bundleID), toContext: p.contextID)
+        let already = config.contexts.first(where: { $0.id == p.contextID })?
+            .slots.contains(where: { $0.apps.contains(p.bundleID) }) ?? false
+        if already {
+            config = config.removingApp(p.bundleID, fromContext: p.contextID)   // clicking a checked entry removes it
+        } else {
+            config = config.addingApp(p.bundleID, role: role(forRunning: AppRef(p.bundleID).bundleID), toContext: p.contextID)
+        }
         saveConfig()
     }
 
@@ -263,6 +269,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             item.submenu = submenu
             menu.addItem(item)
+        }
+
+        let chromeProfiles = ChromeProfiles.all()
+        if chromeProfiles.isEmpty {
+            let none = NSMenuItem(title: "Add Chrome Profile To (open Chrome profiles first)", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            menu.addItem(none)
+        } else {
+            let chromeItem = NSMenuItem(title: "Add Chrome Profile To", action: nil, keyEquivalent: "")
+            let profilesMenu = NSMenu()
+            for profile in chromeProfiles {
+                let entryID = AppRef(bundleID: AppRef.chromeBundleID, profile: profile.name).entry
+                let profileItem = NSMenuItem(title: profile.name, action: nil, keyEquivalent: "")
+                let contextsMenu = NSMenu()
+                for context in config.contexts {
+                    let entry = NSMenuItem(title: context.displayName, action: #selector(addApp(_:)), keyEquivalent: "")
+                    entry.target = self
+                    entry.representedObject = Payload(context.id, entryID)
+                    entry.state = context.slots.contains(where: { $0.apps.contains(entryID) }) ? .on : .off
+                    contextsMenu.addItem(entry)
+                }
+                profileItem.submenu = contextsMenu
+                profilesMenu.addItem(profileItem)
+            }
+            chromeItem.submenu = profilesMenu
+            menu.addItem(chromeItem)
         }
 
         let capture = NSMenuItem(title: "Capture Current Layout Into", action: nil, keyEquivalent: "")

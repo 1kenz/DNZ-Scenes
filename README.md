@@ -12,6 +12,7 @@
 - **Profiles**: up to 20 named profiles with a colour and a wallpaper each; add, rename and delete them in the built-in editor.
 - **Pin apps to screens**: assign apps to the left, right or laptop display; windows are tiled when you switch. Capture the current layout with one click.
 - **Clean desk on switch**: apps outside the target profile are hidden (menu: **Hide Other Apps on Switch**; Finder is always kept). A profile with no apps hides nothing, so assign apps first.
+- **Chrome profiles**: assign individual Chrome profiles to different Scenes profiles (Editor: **Add Chrome Profile...**). On switch, the target's Chrome windows are placed and the other configured profiles' windows are minimized; profiles are discovered from open Chrome windows (no extra permission needed), so open each profile once; a profile whose window is closed is skipped. Chrome windows must show the profile name in their title (Chrome does this once more than one profile is in use).
 - **One-key switching**: `ctrl+opt+1..9`, next/previous with `ctrl+opt+Right/Left`.
 - **Profile ring**: `ctrl+opt+Space` opens a radial picker at the mouse pointer; click a profile to switch (like the Logi Actions Ring).
 - **Logitech MX friendly**: bind any MX button to those shortcuts in Logi Options+; see below.
